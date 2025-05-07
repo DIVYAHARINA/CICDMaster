@@ -1,5 +1,8 @@
-import { apiRequest } from './queryClient';
+import { apiRequest as fetchApiRequest } from './queryClient';
 import { Build, BuildStep, Deployment, Pipeline, Statistics } from '@shared/schema';
+
+// Re-export apiRequest for use in components
+export const apiRequest = fetchApiRequest;
 
 // Statistics API
 export const fetchStatistics = async (): Promise<Statistics> => {
@@ -70,5 +73,92 @@ export const fetchDeployments = async (): Promise<Deployment[]> => {
 // Simulation for demo purposes
 export const simulateBuild = async (buildId: number): Promise<{ message: string }> => {
   const res = await apiRequest('POST', `/api/simulate/build/${buildId}`);
+  return await res.json();
+};
+
+// Docker API
+export const fetchDockerImages = async () => {
+  const res = await apiRequest('GET', '/api/docker/images');
+  return await res.json();
+};
+
+export const fetchDockerImage = async (id: number) => {
+  const res = await apiRequest('GET', `/api/docker/images/${id}`);
+  return await res.json();
+};
+
+export const createDockerImage = async (data: any) => {
+  const res = await apiRequest('POST', '/api/docker/images', data);
+  return await res.json();
+};
+
+export const incrementImagePullCount = async (id: number) => {
+  const res = await apiRequest('POST', `/api/docker/images/${id}/increment-pull`);
+  return await res.json();
+};
+
+export const fetchDockerContainers = async () => {
+  const res = await apiRequest('GET', '/api/docker/containers');
+  return await res.json();
+};
+
+export const fetchDockerContainer = async (id: number) => {
+  const res = await apiRequest('GET', `/api/docker/containers/${id}`);
+  return await res.json();
+};
+
+export const fetchContainersByBuild = async (buildId: number) => {
+  const res = await apiRequest('GET', `/api/builds/${buildId}/containers`);
+  return await res.json();
+};
+
+export const createDockerContainer = async (data: any) => {
+  const res = await apiRequest('POST', '/api/docker/containers', data);
+  return await res.json();
+};
+
+export const updateDockerContainerStatus = async (id: number, status: string) => {
+  const res = await apiRequest('PATCH', `/api/docker/containers/${id}/status`, { status });
+  return await res.json();
+};
+
+export const updateDockerContainerResources = async (id: number, cpuUsage: number, memoryUsage: number) => {
+  const res = await apiRequest('PATCH', `/api/docker/containers/${id}/resources`, { cpuUsage, memoryUsage });
+  return await res.json();
+};
+
+// Jenkins API
+export const fetchJenkinsJobs = async () => {
+  const res = await apiRequest('GET', '/api/jenkins/jobs');
+  return await res.json();
+};
+
+export const fetchJenkinsJob = async (id: number) => {
+  const res = await apiRequest('GET', `/api/jenkins/jobs/${id}`);
+  return await res.json();
+};
+
+export const fetchJenkinsJobsByPipeline = async (pipelineId: number) => {
+  const res = await apiRequest('GET', `/api/pipelines/${pipelineId}/jenkins-jobs`);
+  return await res.json();
+};
+
+export const createJenkinsJob = async (data: any) => {
+  const res = await apiRequest('POST', '/api/jenkins/jobs', data);
+  return await res.json();
+};
+
+export const updateJenkinsJobStatus = async (id: number, status: string, buildNumber: number, buildTime: Date) => {
+  const res = await apiRequest('PATCH', `/api/jenkins/jobs/${id}/status`, { status, buildNumber, buildTime });
+  return await res.json();
+};
+
+export const updateJenkinsJobDefinition = async (id: number, jenkinsJobDefinition: string) => {
+  const res = await apiRequest('PATCH', `/api/jenkins/jobs/${id}/definition`, { jenkinsJobDefinition });
+  return await res.json();
+};
+
+export const toggleJenkinsJobEnabled = async (id: number, enabled: boolean) => {
+  const res = await apiRequest('PATCH', `/api/jenkins/jobs/${id}/toggle-enabled`, { enabled });
   return await res.json();
 };

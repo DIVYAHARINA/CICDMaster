@@ -6,7 +6,10 @@ import {
   insertPipelineSchema, 
   insertBuildSchema, 
   insertBuildStepSchema, 
-  insertDeploymentSchema 
+  insertDeploymentSchema,
+  insertDockerImageSchema,
+  insertDockerContainerSchema,
+  insertJenkinsJobSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -310,6 +313,278 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Build simulation completed successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to simulate build" });
+    }
+  });
+
+  // Docker image routes
+  // Get all Docker images
+  app.get("/api/docker/images", async (req, res) => {
+    try {
+      const images = await storage.getAllDockerImages();
+      res.json(images);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Docker images" });
+    }
+  });
+
+  // Get Docker image by ID
+  app.get("/api/docker/images/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const image = await storage.getDockerImage(id);
+      
+      if (!image) {
+        return res.status(404).json({ message: "Docker image not found" });
+      }
+      
+      res.json(image);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Docker image" });
+    }
+  });
+
+  // Create Docker image
+  app.post("/api/docker/images", async (req, res) => {
+    try {
+      const imageData = insertDockerImageSchema.parse(req.body);
+      const image = await storage.createDockerImage(imageData);
+      res.status(201).json(image);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid Docker image data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create Docker image" });
+    }
+  });
+
+  // Increment Docker image pull count
+  app.post("/api/docker/images/:id/increment-pull", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.incrementImagePullCount(id);
+      const updatedImage = await storage.getDockerImage(id);
+      
+      if (!updatedImage) {
+        return res.status(404).json({ message: "Docker image not found" });
+      }
+      
+      res.json(updatedImage);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to increment pull count" });
+    }
+  });
+
+  // Docker container routes
+  // Get all Docker containers
+  app.get("/api/docker/containers", async (req, res) => {
+    try {
+      const containers = await storage.getAllDockerContainers();
+      res.json(containers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Docker containers" });
+    }
+  });
+
+  // Get Docker container by ID
+  app.get("/api/docker/containers/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const container = await storage.getDockerContainer(id);
+      
+      if (!container) {
+        return res.status(404).json({ message: "Docker container not found" });
+      }
+      
+      res.json(container);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Docker container" });
+    }
+  });
+
+  // Get Docker containers by build ID
+  app.get("/api/builds/:id/containers", async (req, res) => {
+    try {
+      const buildId = parseInt(req.params.id);
+      const containers = await storage.getDockerContainersByBuild(buildId);
+      res.json(containers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Docker containers for build" });
+    }
+  });
+
+  // Create Docker container
+  app.post("/api/docker/containers", async (req, res) => {
+    try {
+      const containerData = insertDockerContainerSchema.parse(req.body);
+      const container = await storage.createDockerContainer(containerData);
+      res.status(201).json(container);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid Docker container data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create Docker container" });
+    }
+  });
+
+  // Update Docker container status
+  app.patch("/api/docker/containers/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!status || !["running", "stopped", "exited", "created", "restarting", "paused"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      
+      const container = await storage.updateDockerContainerStatus(id, status);
+      
+      if (!container) {
+        return res.status(404).json({ message: "Docker container not found" });
+      }
+      
+      res.json(container);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update Docker container status" });
+    }
+  });
+
+  // Update Docker container resources
+  app.patch("/api/docker/containers/:id/resources", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { cpuUsage, memoryUsage } = req.body;
+      
+      if (typeof cpuUsage !== 'number' || typeof memoryUsage !== 'number') {
+        return res.status(400).json({ message: "Invalid resource values" });
+      }
+      
+      const container = await storage.updateDockerContainerResources(id, cpuUsage, memoryUsage);
+      
+      if (!container) {
+        return res.status(404).json({ message: "Docker container not found" });
+      }
+      
+      res.json(container);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update Docker container resources" });
+    }
+  });
+
+  // Jenkins job routes
+  // Get all Jenkins jobs
+  app.get("/api/jenkins/jobs", async (req, res) => {
+    try {
+      const jobs = await storage.getAllJenkinsJobs();
+      res.json(jobs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Jenkins jobs" });
+    }
+  });
+
+  // Get Jenkins job by ID
+  app.get("/api/jenkins/jobs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const job = await storage.getJenkinsJob(id);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Jenkins job not found" });
+      }
+      
+      res.json(job);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Jenkins job" });
+    }
+  });
+
+  // Get Jenkins jobs by pipeline ID
+  app.get("/api/pipelines/:id/jenkins-jobs", async (req, res) => {
+    try {
+      const pipelineId = parseInt(req.params.id);
+      const jobs = await storage.getJenkinsJobsByPipeline(pipelineId);
+      res.json(jobs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Jenkins jobs for pipeline" });
+    }
+  });
+
+  // Create Jenkins job
+  app.post("/api/jenkins/jobs", async (req, res) => {
+    try {
+      const jobData = insertJenkinsJobSchema.parse(req.body);
+      const job = await storage.createJenkinsJob(jobData);
+      res.status(201).json(job);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid Jenkins job data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create Jenkins job" });
+    }
+  });
+
+  // Update Jenkins job status
+  app.patch("/api/jenkins/jobs/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, buildNumber, buildTime } = req.body;
+      
+      if (!status || !buildNumber || !buildTime) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const job = await storage.updateJenkinsJobStatus(id, status, buildNumber, new Date(buildTime));
+      
+      if (!job) {
+        return res.status(404).json({ message: "Jenkins job not found" });
+      }
+      
+      res.json(job);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update Jenkins job status" });
+    }
+  });
+
+  // Update Jenkins job definition
+  app.patch("/api/jenkins/jobs/:id/definition", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { jenkinsJobDefinition } = req.body;
+      
+      if (!jenkinsJobDefinition) {
+        return res.status(400).json({ message: "Missing job definition" });
+      }
+      
+      const job = await storage.updateJenkinsJobDefinition(id, jenkinsJobDefinition);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Jenkins job not found" });
+      }
+      
+      res.json(job);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update Jenkins job definition" });
+    }
+  });
+
+  // Toggle Jenkins job enabled status
+  app.patch("/api/jenkins/jobs/:id/toggle-enabled", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({ message: "Invalid enabled value" });
+      }
+      
+      const job = await storage.toggleJenkinsJobEnabled(id, enabled);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Jenkins job not found" });
+      }
+      
+      res.json(job);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to toggle Jenkins job enabled status" });
     }
   });
 

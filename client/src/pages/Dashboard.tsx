@@ -6,6 +6,9 @@ import StatusOverview from "@/components/dashboard/StatusOverview";
 import ActivePipelines from "@/components/dashboard/ActivePipelines";
 import DeploymentHistory from "@/components/dashboard/DeploymentHistory";
 import BuildLogs from "@/components/dashboard/BuildLogs";
+import DockerContainers from "@/components/dashboard/DockerContainers";
+import DockerImages from "@/components/dashboard/DockerImages";
+import JenkinsJobs from "@/components/dashboard/JenkinsJobs";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 export default function Dashboard() {
@@ -36,9 +39,22 @@ export default function Dashboard() {
             <StatusOverview />
             <ActivePipelines />
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <DeploymentHistory />
-              <BuildLogs />
+              <div className="md:col-span-2">
+                <BuildLogs />
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">Docker Management</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <DockerContainers />
+                <DockerImages />
+              </div>
+              
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">Jenkins Integration</h2>
+              <JenkinsJobs />
             </div>
           </div>
         </main>
