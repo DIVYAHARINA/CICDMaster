@@ -524,7 +524,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getAllDeployments(): Promise<Deployment[]> {
-    return db.select().from(deployments).orderBy(desc(deployments.createdAt));
+    return db.select().from(deployments).orderBy(desc(deployments.deployedAt));
   }
   
   async getDeployment(id: number): Promise<Deployment | undefined> {
