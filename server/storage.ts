@@ -1,4 +1,5 @@
 import {
+  users, pipelines, builds, buildSteps, deployments, statistics,
   type User,
   type InsertUser,
   type Pipeline,
@@ -9,8 +10,11 @@ import {
   type InsertBuildStep,
   type Deployment,
   type InsertDeployment,
-  type Statistics
+  type Statistics,
+  type InsertStatistics
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 // Extend storage interface with methods needed for CI/CD dashboard
 export interface IStorage {
@@ -402,4 +406,206 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+  
+  async getAllPipelines(): Promise<Pipeline[]> {
+    return db.select().from(pipelines).orderBy(desc(pipelines.updatedAt));
+  }
+  
+  async getPipeline(id: number): Promise<Pipeline | undefined> {
+    const [pipeline] = await db.select().from(pipelines).where(eq(pipelines.id, id));
+    return pipeline || undefined;
+  }
+  
+  async getPipelineByRepo(repository: string, branch: string): Promise<Pipeline | undefined> {
+    const [pipeline] = await db.select().from(pipelines)
+      .where(and(
+        eq(pipelines.repository, repository),
+        eq(pipelines.branch, branch)
+      ));
+    return pipeline || undefined;
+  }
+  
+  async createPipeline(pipeline: InsertPipeline): Promise<Pipeline> {
+    const createdAt = new Date();
+    const updatedAt = createdAt;
+    const [newPipeline] = await db.insert(pipelines)
+      .values({ ...pipeline, createdAt, updatedAt })
+      .returning();
+    return newPipeline;
+  }
+  
+  async getAllBuilds(): Promise<Build[]> {
+    return db.select().from(builds).orderBy(desc(builds.startedAt));
+  }
+  
+  async getBuild(id: number): Promise<Build | undefined> {
+    const [build] = await db.select().from(builds).where(eq(builds.id, id));
+    return build || undefined;
+  }
+  
+  async getBuildsByPipeline(pipelineId: number): Promise<Build[]> {
+    return db.select().from(builds)
+      .where(eq(builds.pipelineId, pipelineId))
+      .orderBy(desc(builds.buildNumber));
+  }
+  
+  async getLastBuildNumber(pipelineId: number): Promise<number> {
+    const [result] = await db.select({ maxNumber: sql<number>`max(${builds.buildNumber})` })
+      .from(builds)
+      .where(eq(builds.pipelineId, pipelineId));
+    return result?.maxNumber || 0;
+  }
+  
+  async createBuild(build: InsertBuild): Promise<Build> {
+    const [newBuild] = await db.insert(builds)
+      .values(build)
+      .returning();
+    return newBuild;
+  }
+  
+  async updateBuildStatus(id: number, status: string, completedAt?: Date, duration?: number): Promise<Build | undefined> {
+    const [updatedBuild] = await db.update(builds)
+      .set({ 
+        status, 
+        ...(completedAt && { completedAt }),
+        ...(duration && { duration }),
+      })
+      .where(eq(builds.id, id))
+      .returning();
+    return updatedBuild || undefined;
+  }
+  
+  async getBuildSteps(buildId: number): Promise<BuildStep[]> {
+    return db.select().from(buildSteps)
+      .where(eq(buildSteps.buildId, buildId))
+      .orderBy(buildSteps.stepNumber);
+  }
+  
+  async getBuildStep(id: number): Promise<BuildStep | undefined> {
+    const [step] = await db.select().from(buildSteps).where(eq(buildSteps.id, id));
+    return step || undefined;
+  }
+  
+  async createBuildStep(step: InsertBuildStep): Promise<BuildStep> {
+    const [newStep] = await db.insert(buildSteps)
+      .values(step)
+      .returning();
+    return newStep;
+  }
+  
+  async updateBuildStep(id: number, status: string, completedAt?: Date, logs?: string): Promise<BuildStep | undefined> {
+    const [updatedStep] = await db.update(buildSteps)
+      .set({ 
+        status, 
+        ...(completedAt && { completedAt }),
+        ...(logs !== undefined && { logs }),
+      })
+      .where(eq(buildSteps.id, id))
+      .returning();
+    return updatedStep || undefined;
+  }
+  
+  async getAllDeployments(): Promise<Deployment[]> {
+    return db.select().from(deployments).orderBy(desc(deployments.createdAt));
+  }
+  
+  async getDeployment(id: number): Promise<Deployment | undefined> {
+    const [deployment] = await db.select().from(deployments).where(eq(deployments.id, id));
+    return deployment || undefined;
+  }
+  
+  async getDeploymentsByBuild(buildId: number): Promise<Deployment[]> {
+    return db.select().from(deployments)
+      .where(eq(deployments.buildId, buildId))
+      .orderBy(desc(deployments.createdAt));
+  }
+  
+  async createDeployment(deployment: InsertDeployment): Promise<Deployment> {
+    const [newDeployment] = await db.insert(deployments)
+      .values(deployment)
+      .returning();
+    return newDeployment;
+  }
+  
+  async getStatistics(): Promise<Statistics> {
+    // Try to get existing statistics
+    const [existingStats] = await db.select().from(statistics);
+    
+    // If no statistics exist, create initial record
+    if (!existingStats) {
+      const [newStats] = await db.insert(statistics)
+        .values({
+          successfulBuilds: 0,
+          failedBuilds: 0,
+          totalDeployments: 0,
+          averageBuildTime: 0
+        })
+        .returning();
+      return newStats;
+    }
+    
+    return existingStats;
+  }
+  
+  async incrementSuccessfulBuilds(): Promise<void> {
+    const stats = await this.getStatistics();
+    await db.update(statistics)
+      .set({ successfulBuilds: stats.successfulBuilds + 1 })
+      .where(eq(statistics.id, stats.id));
+  }
+  
+  async incrementFailedBuilds(): Promise<void> {
+    const stats = await this.getStatistics();
+    await db.update(statistics)
+      .set({ failedBuilds: stats.failedBuilds + 1 })
+      .where(eq(statistics.id, stats.id));
+  }
+  
+  async incrementTotalDeployments(): Promise<void> {
+    const stats = await this.getStatistics();
+    await db.update(statistics)
+      .set({ totalDeployments: stats.totalDeployments + 1 })
+      .where(eq(statistics.id, stats.id));
+  }
+  
+  async updateAverageBuildTime(buildTime: number): Promise<void> {
+    const stats = await this.getStatistics();
+    const totalBuilds = stats.successfulBuilds + stats.failedBuilds;
+    
+    if (totalBuilds === 0) {
+      await db.update(statistics)
+        .set({ averageBuildTime: buildTime })
+        .where(eq(statistics.id, stats.id));
+      return;
+    }
+    
+    // Calculate new average
+    const currentTotalTime = stats.averageBuildTime * totalBuilds;
+    const newTotalTime = currentTotalTime + buildTime;
+    const newAverage = newTotalTime / (totalBuilds + 1);
+    
+    await db.update(statistics)
+      .set({ averageBuildTime: newAverage })
+      .where(eq(statistics.id, stats.id));
+  }
+}
+
+export const storage = new DatabaseStorage();
