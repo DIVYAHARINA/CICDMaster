@@ -18,7 +18,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stats = await storage.getStatistics();
       res.json(stats);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch statistics" });
+      console.error("Error fetching statistics:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch statistics", 
+        details: process.env.NODE_ENV === "development" ? String(error) : undefined 
+      });
     }
   });
 
@@ -178,7 +182,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deployments = await storage.getAllDeployments();
       res.json(deployments);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch deployments" });
+      console.error("Error fetching deployments:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch deployments", 
+        details: process.env.NODE_ENV === "development" ? String(error) : undefined 
+      });
     }
   });
 
