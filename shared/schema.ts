@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -131,3 +131,92 @@ export const insertStatisticsSchema = createInsertSchema(statistics).omit({
 
 export type InsertStatistics = z.infer<typeof insertStatisticsSchema>;
 export type Statistics = typeof statistics.$inferSelect;
+
+// Docker container types
+export const containerStatusEnum = pgEnum("container_status", [
+  "running",
+  "stopped",
+  "exited",
+  "created",
+  "restarting",
+  "paused",
+]);
+
+// Docker images schema
+export const dockerImages = pgTable("docker_images", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  tag: text("tag").notNull(),
+  repository: text("repository").notNull(),
+  pullCount: integer("pull_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  size: integer("size").notNull(), // in MB
+  description: text("description"),
+});
+
+export const insertDockerImageSchema = createInsertSchema(dockerImages).omit({
+  id: true,
+  pullCount: true,
+  createdAt: true,
+});
+
+export type InsertDockerImage = z.infer<typeof insertDockerImageSchema>;
+export type DockerImage = typeof dockerImages.$inferSelect;
+
+// Docker containers schema
+export const dockerContainers = pgTable("docker_containers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  imageId: integer("image_id").notNull().references(() => dockerImages.id),
+  status: text("status", { 
+    enum: ["running", "stopped", "exited", "created", "restarting", "paused"] 
+  }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  ports: jsonb("ports").notNull(), // JSON array of port mappings
+  volumes: jsonb("volumes"), // JSON array of volume mappings
+  environment: jsonb("environment"), // JSON object of environment variables
+  command: text("command"),
+  cpuUsage: integer("cpu_usage").default(0), // percentage
+  memoryUsage: integer("memory_usage").default(0), // in MB
+  restartPolicy: text("restart_policy").default("no"),
+  buildId: integer("build_id").references(() => builds.id),
+});
+
+export const insertDockerContainerSchema = createInsertSchema(dockerContainers).omit({
+  id: true,
+  createdAt: true,
+  cpuUsage: true,
+  memoryUsage: true,
+});
+
+export type InsertDockerContainer = z.infer<typeof insertDockerContainerSchema>;
+export type DockerContainer = typeof dockerContainers.$inferSelect;
+
+// Jenkins jobs schema
+export const jenkinsJobs = pgTable("jenkins_jobs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  pipelineId: integer("pipeline_id").references(() => pipelines.id),
+  lastBuildStatus: text("last_build_status", { 
+    enum: ["success", "failed", "in_progress", "cancelled", "pending"] 
+  }),
+  lastBuildNumber: integer("last_build_number"),
+  lastBuildTime: timestamp("last_build_time"),
+  jenkinsJobDefinition: text("jenkins_job_definition").notNull(), // XML or JSON definition
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+});
+
+export const insertJenkinsJobSchema = createInsertSchema(jenkinsJobs).omit({
+  id: true,
+  lastBuildStatus: true,
+  lastBuildNumber: true,
+  lastBuildTime: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertJenkinsJob = z.infer<typeof insertJenkinsJobSchema>;
+export type JenkinsJob = typeof jenkinsJobs.$inferSelect;

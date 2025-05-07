@@ -49,6 +49,29 @@ export interface IStorage {
   getDeploymentsByBuild(buildId: number): Promise<Deployment[]>;
   createDeployment(deployment: InsertDeployment): Promise<Deployment>;
   
+  // Docker image methods
+  getAllDockerImages(): Promise<DockerImage[]>;
+  getDockerImage(id: number): Promise<DockerImage | undefined>;
+  createDockerImage(image: InsertDockerImage): Promise<DockerImage>;
+  incrementImagePullCount(id: number): Promise<void>;
+  
+  // Docker container methods
+  getAllDockerContainers(): Promise<DockerContainer[]>;
+  getDockerContainer(id: number): Promise<DockerContainer | undefined>;
+  getDockerContainersByBuild(buildId: number): Promise<DockerContainer[]>;
+  createDockerContainer(container: InsertDockerContainer): Promise<DockerContainer>;
+  updateDockerContainerStatus(id: number, status: string): Promise<DockerContainer | undefined>;
+  updateDockerContainerResources(id: number, cpuUsage: number, memoryUsage: number): Promise<DockerContainer | undefined>;
+  
+  // Jenkins job methods
+  getAllJenkinsJobs(): Promise<JenkinsJob[]>;
+  getJenkinsJob(id: number): Promise<JenkinsJob | undefined>;
+  getJenkinsJobsByPipeline(pipelineId: number): Promise<JenkinsJob[]>;
+  createJenkinsJob(job: InsertJenkinsJob): Promise<JenkinsJob>;
+  updateJenkinsJobStatus(id: number, status: string, buildNumber: number, buildTime: Date): Promise<JenkinsJob | undefined>;
+  updateJenkinsJobDefinition(id: number, jenkinsJobDefinition: string): Promise<JenkinsJob | undefined>;
+  toggleJenkinsJobEnabled(id: number, enabled: boolean): Promise<JenkinsJob | undefined>;
+  
   // Statistics methods
   getStatistics(): Promise<Statistics>;
   incrementSuccessfulBuilds(): Promise<void>;
@@ -63,6 +86,9 @@ export class MemStorage implements IStorage {
   private builds: Map<number, Build>;
   private buildSteps: Map<number, BuildStep>;
   private deployments: Map<number, Deployment>;
+  private dockerImages: Map<number, DockerImage>;
+  private dockerContainers: Map<number, DockerContainer>;
+  private jenkinsJobs: Map<number, JenkinsJob>;
   private stats: Statistics;
   
   private userCurrentId: number;
@@ -70,6 +96,9 @@ export class MemStorage implements IStorage {
   private buildCurrentId: number;
   private buildStepCurrentId: number;
   private deploymentCurrentId: number;
+  private dockerImageCurrentId: number;
+  private dockerContainerCurrentId: number;
+  private jenkinsJobCurrentId: number;
 
   constructor() {
     this.users = new Map();
@@ -77,12 +106,18 @@ export class MemStorage implements IStorage {
     this.builds = new Map();
     this.buildSteps = new Map();
     this.deployments = new Map();
+    this.dockerImages = new Map();
+    this.dockerContainers = new Map();
+    this.jenkinsJobs = new Map();
     
     this.userCurrentId = 1;
     this.pipelineCurrentId = 1;
     this.buildCurrentId = 1;
     this.buildStepCurrentId = 1;
     this.deploymentCurrentId = 1;
+    this.dockerImageCurrentId = 1;
+    this.dockerContainerCurrentId = 1;
+    this.jenkinsJobCurrentId = 1;
     
     // Initialize with some statistics
     this.stats = {
