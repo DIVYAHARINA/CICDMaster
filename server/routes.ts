@@ -230,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const buildData = {
             pipelineId: pipeline.id,
             buildNumber,
-            status: "in_progress",
+            status: "in_progress" as const,
             commitSha,
             commitMessage,
             commitAuthor,
@@ -241,10 +241,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Create initial build steps
           const steps = [
-            { buildId: build.id, name: "Checkout", status: "pending", order: 1 },
-            { buildId: build.id, name: "Test", status: "pending", order: 2 },
-            { buildId: build.id, name: "Build", status: "pending", order: 3 },
-            { buildId: build.id, name: "Deploy", status: "pending", order: 4 }
+            { buildId: build.id, name: "Checkout", status: "pending" as const, order: 1 },
+            { buildId: build.id, name: "Test", status: "pending" as const, order: 2 },
+            { buildId: build.id, name: "Build", status: "pending" as const, order: 3 },
+            { buildId: build.id, name: "Deploy", status: "pending" as const, order: 4 }
           ];
           
           for (const step of steps) {
@@ -282,19 +282,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Simulate each step with a success outcome
       for (const step of steps) {
-        await storage.updateBuildStep(step.id, "success", new Date(), "Simulated logs for step execution");
+        await storage.updateBuildStep(step.id, "success" as const, new Date(), "Simulated logs for step execution");
       }
       
       // Update the build status
       const completedAt = new Date();
       const duration = Math.floor((completedAt.getTime() - new Date(build.startedAt).getTime()) / 1000);
-      await storage.updateBuildStatus(buildId, "success", completedAt, duration);
+      await storage.updateBuildStatus(buildId, "success" as const, completedAt, duration);
       
       // Create a deployment
       const deploymentData = {
         buildId,
         environment: "Replit (Dev)",
-        status: "success",
+        status: "success" as const,
         deployedAt: new Date(),
         version: `v1.0.${build.buildNumber}`,
         url: "https://ci-cd-dashboard.example.repl.co"
