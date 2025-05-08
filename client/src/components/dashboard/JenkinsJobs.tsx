@@ -73,7 +73,7 @@ export default function JenkinsJobs() {
   
   const handleToggleEnabled = async (jobId: number, enabled: boolean) => {
     try {
-      await apiRequest(`/api/jenkins/jobs/${jobId}/toggle-enabled`, 'PATCH', { enabled });
+      await apiRequest('PATCH', `/api/jenkins/jobs/${jobId}/toggle-enabled`, { enabled });
       queryClient.invalidateQueries({ queryKey: ['/api/jenkins/jobs'] });
     } catch (error) {
       console.error("Failed to toggle job enabled status:", error);
@@ -82,7 +82,7 @@ export default function JenkinsJobs() {
   
   const handleTriggerBuild = async (jobId: number) => {
     try {
-      await apiRequest(`/api/jenkins/jobs/${jobId}/trigger`, 'POST');
+      await apiRequest('POST', `/api/jenkins/jobs/${jobId}/trigger`);
       queryClient.invalidateQueries({ queryKey: ['/api/jenkins/jobs'] });
     } catch (error) {
       console.error("Failed to trigger job build:", error);

@@ -77,7 +77,7 @@ export default function DockerContainers() {
     }
     
     try {
-      await apiRequest(`/api/docker/containers/${containerId}/status`, 'PATCH', { status });
+      await apiRequest('PATCH', `/api/docker/containers/${containerId}/status`, { status });
       queryClient.invalidateQueries({ queryKey: ['/api/docker/containers'] });
     } catch (error) {
       console.error(`Failed to ${action} container:`, error);
@@ -86,7 +86,7 @@ export default function DockerContainers() {
   
   const handleDeleteContainer = async (containerId: number) => {
     try {
-      await apiRequest(`/api/docker/containers/${containerId}`, 'DELETE');
+      await apiRequest('DELETE', `/api/docker/containers/${containerId}`);
       queryClient.invalidateQueries({ queryKey: ['/api/docker/containers'] });
       setSelectedContainerId(null);
     } catch (error) {
